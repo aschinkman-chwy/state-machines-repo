@@ -25,3 +25,4 @@ yarn-error.log*
 /Users/aschinkman/Desktop/state-machines-repo/~/.aws/config
 /Users/aschinkman/Desktop/state-machines-repo/~/.aws/credentials
 /Users/aschinkman/Desktop/state-machines-repo/proxy-server/.env
+node_modules/

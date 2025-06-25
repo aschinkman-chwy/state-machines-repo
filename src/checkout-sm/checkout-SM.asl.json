@@ -15,7 +15,9 @@
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
                                     "url.$": "$.kyriosUserUrlField",
-                                    "headers.$": "$.inputKyriosHeadersField"
+                                    "urlSuffix.$": "$.inputKyriosUrlSuffix",
+                                    "connectionArn.$": "$.connectionArn",
+                                    "s2sToken.$": "$.s2sToken"
                                 }
                             },
                             "ResultPath": "$.kyriosUserInfo",
@@ -33,7 +35,9 @@
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
                                     "url.$": "$.inputGetCartUrlField",
-                                    "headers.$": "$.inputGetCartHeadersField"
+                                    "urlSuffix.$": "$.inputGetCartUrlSuffix",
+                                    "connectionArn.$": "$.connectionArn",
+                                    "s2sToken.$": "$.s2sToken"
                                 }
                             },
                             "ResultPath": "$.getCartInfo",

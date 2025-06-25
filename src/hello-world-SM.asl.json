@@ -33,12 +33,6 @@
         },
         "Yes": {
             "Type": "Pass",
-            "Next": "Wait 3 sec"
-        },
-        "Wait 3 sec": {
-            "Comment": "A Wait state delays the state machine from continuing for a specified time.",
-            "Type": "Wait",
-            "Seconds": 3,
             "Next": "Parallel State"
         },
         "Parallel State": {
@@ -68,6 +62,25 @@
         },
         "Hello World": {
             "Type": "Pass",
+            "Next": "GetUserInfoTest",
+            "Result": {
+                "reachedLastTask": "yes",
+                "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/kyrios-b/v1/users/ ",
+                "urlSuffix": "256676018",
+                "connectionArn": "arn:aws:events:us-east-1:243249644484:connection/aschinkmann-connection/51f0ec0d-4e3f-4611-ac8d-4c44c4244809"
+            }
+        },
+        "GetUserInfoTest": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url.$": "$.url",
+                    "urlSuffix.$": "$.urlSuffix",
+                    "connectionArn.$": "$.connectionArn"
+                }
+            },
             "End": true
         }
     }

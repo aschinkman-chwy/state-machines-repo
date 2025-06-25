@@ -1,0 +1,18 @@
+{
+    "Comment": "Reusable GET helper for checkout workflow",
+    "StartAt": "InvokeGet",
+    "States": {
+        "InvokeGet": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
+            "Parameters": {
+                "ApiEndpoint.$": "States.Format('{}{}', $.url, $.urlSuffix)",
+                "Method": "GET",
+                "Authentication": {
+                    "ConnectionArn": "arn:aws:events:us-east-1:243249644484:connection/aschinkmann-connection/51f0ec0d-4e3f-4611-ac8d-4c44c4244809"
+                }
+            },
+            "End": true
+        }
+    }
+}

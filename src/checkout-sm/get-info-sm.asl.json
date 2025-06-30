@@ -1,16 +1,47 @@
 {
-    "Comment": "Reusable GET helper for checkout workflow",
-    "StartAt": "InvokeGet",
+    "Comment": "Reusable HTTP helper for checkout workflow - handles GET, POST, and DELETE operations",
+    "StartAt": "CheckMethod",
     "States": {
-        "InvokeGet": {
+        "CheckMethod": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.operation",
+                    "StringEquals": "GET",
+                    "Next": "InvokeOperationNoBody"
+                },
+                {
+                    "Variable": "$.operation",
+                    "StringEquals": "DELETE",
+                    "Next": "InvokeOperationNoBody"
+                }
+            ],
+            "Default": "InvokeOperationWithBody"
+        },
+        "InvokeOperationNoBody": {
             "Type": "Task",
             "Resource": "arn:aws:states:::http:invoke",
             "Parameters": {
                 "ApiEndpoint.$": "States.Format('{}{}', $.url, $.urlSuffix)",
-                "Method": "GET",
+                "Method.$": "$.operation",
                 "Authentication": {
-                    "ConnectionArn": "arn:aws:events:us-east-1:243249644484:connection/aschinkmann-connection/51f0ec0d-4e3f-4611-ac8d-4c44c4244809"
-                }
+                    "ConnectionArn.$": "$.connectionArn"
+                },
+                "Headers.$": "$.headers"
+            },
+            "End": true
+        },
+        "InvokeOperationWithBody": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
+            "Parameters": {
+                "ApiEndpoint.$": "States.Format('{}{}', $.url, $.urlSuffix)",
+                "Method.$": "$.operation",
+                "Authentication": {
+                    "ConnectionArn.$": "$.connectionArn"
+                },
+                "Headers.$": "$.headers",
+                "RequestBody.$": "States.JsonToString($.body)"
             },
             "End": true
         }

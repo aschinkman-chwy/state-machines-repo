@@ -1,0 +1,336 @@
+{
+    "Comment": "checkout-sm-basic: kick off two get-info-statemachine branches",
+    "StartAt": "FetchInfo",
+    "States": {
+        "FetchInfo": {
+            "Type": "Parallel",
+            "Branches": [
+                {
+                    "StartAt": "KyriosUserInfo",
+                    "States": {
+                        "KyriosUserInfo": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/kyrios-b/v1/users/",
+                                    "urlSuffix.$": "$.userId",
+                                    "headers": {
+                                        "account.$": "$.userId"
+                                    },
+                                    "connectionArn.$": "$.connectionArn",
+                                    "operation": "GET"
+                                }
+                            },
+                            "ResultPath": "$.UserInfo",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "GetCartInfo",
+                    "States": {
+                        "GetCartInfo": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/cart-b/api/v1/cart",
+                                    "urlSuffix": "",
+                                    "headers": {
+                                        "account.$": "$.userId"
+                                    },
+                                    "connectionArn.$": "$.connectionArn",
+                                    "operation": "GET"
+                                }
+                            },
+                            "ResultPath": "$.CartInfo",
+                            "End": true
+                        }
+                    }
+                }
+            ],
+            "Parameters": {
+                "connectionArn.$": "$.connectionArn",
+                "userId.$": "$.userId"
+            },
+            "ResultPath": "$.UserCartInfo",
+            "Next": "ExtractCartId"
+        },
+        "ExtractCartId": {
+            "Type": "Pass",
+            "Parameters": {
+                "cartId.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.id"
+            },
+            "ResultPath": "$.ExtractedCartId",
+            "Next": "CreateOrderId"
+        },
+        "CreateOrderId": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
+            "Parameters": {
+                "ApiEndpoint": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/graphql",
+                "Method": "POST",
+                "Authentication": {
+                    "ConnectionArn.$": "$.connectionArn"
+                },
+                "Headers": {
+                    "Content-Type": "application/json"
+                },
+                "RequestBody": {
+                    "query": "query { newOrderExternalId { value } }"
+                }
+            },
+            "ResultPath": "$.orderConfirmationId",
+            "Next": "InventoryAlloc"
+        },
+        "InventoryAlloc": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": " https://inventory-svc.use1.scff.qat.aws.chewy.cloud/v1/inventory/allocations",
+                    "urlSuffix": "",
+                    "connectionArn.$": "$.connectionArn",
+                    "operation": "POST",
+                    "body": {
+                        "data": {
+                            "type": "allocationV2",
+                            "attributes": {
+                                "externalId.$": "$.ExtractedCartId.cartId",
+                                "allocationPartNumbers.$": "$.TransformedCartItems.allocationPartNumbers"
+                            }
+                        }
+                    },
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                }
+            },
+            "Next": "CreateOrder"
+        },
+        "CreateOrder": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/api/v1/orders",
+                    "urlSuffix": "",
+                    "connectionArn.$": "$.connectionArn",
+                    "headers": {
+                        "x-request-id.$": "$.UserCartInfo[1].CartInfo.Output.Headers['x-request-id'][0]",
+                        "Content-Type": "application/json"
+                    },
+                    "operation": "POST",
+                    "body": {
+                        "adjustments": [
+                            {
+                                "calculationUsage": "RDF_ADJUSTMENT",
+                                "description": "10% off promotion",
+                                "displayLevel": "LINE_ITEM",
+                                "promotionCode": "SUMMER10",
+                                "promotionId": "promo-123",
+                                "submitLineItemAdjustments": [
+                                    {
+                                        "amount": {
+                                            "currency": "USD",
+                                            "value": "8.86"
+                                        },
+                                        "lineNumber": 0
+                                    }
+                                ],
+                                "type": "PROMOTION"
+                            }
+                        ],
+                        "attributes": {
+                            "sourceSystem": "CHEWY",
+                            "orderOrigin": "WEB"
+                        },
+                        "attributionId": "duagf0G9Ra6i2XN9T8Xm3w",
+                        "attributionType": "PERSONALIZATION",
+                        "businessChannel": "WEB",
+                        "currency": "USD",
+                        "donationOrgId": "0",
+                        "email1": "alex@example.com",
+                        "expectedFulfillmentDate": "2025-07-01T12:00:00Z",
+                        "externalOrderId": "order-456",
+                        "fees": [
+                            {
+                                "amount": {
+                                    "currency": "USD",
+                                    "value": "1.50"
+                                },
+                                "shortDescription": "Service Fee",
+                                "type": "SERVICE"
+                            }
+                        ],
+                        "fraudSessionId": "fraud-789",
+                        "incomplete": false,
+                        "inventoryAllocationId": "alloc-321",
+                        "lineItems": [
+                            {
+                                "appointmentDate": "2025-07-02T09:00:00Z",
+                                "attributes": {
+                                    "gift": "false"
+                                },
+                                "autoAdd": false,
+                                "bundleComponents": [],
+                                "currency": "USD",
+                                "earnedRewards": {
+                                    "currency": "USD",
+                                    "reason": "LOYALTY",
+                                    "value": "0.00"
+                                },
+                                "fulfillmentCenter": "AVP1",
+                                "isAutoRefill": false,
+                                "lineNumber": 1,
+                                "oneTime": true,
+                                "personalizationAttributeMap": {},
+                                "product": {
+                                    "attributes": [
+                                        "VET_DIET"
+                                    ],
+                                    "bundleTitle": "",
+                                    "catalogEntryId": "143501",
+                                    "description": "Kalmbach Feeds Organic Harvest 17% Protein Layer Pellets Chicken Feed, 25-lb bag",
+                                    "name": "Chicken Feed 25lb",
+                                    "partNumber": "143501"
+                                },
+                                "promiseDeliveryDate": "2025-07-03T00:00:00Z",
+                                "quantity": 1,
+                                "salesTax": {
+                                    "currency": "USD",
+                                    "value": "7.10"
+                                },
+                                "salesTaxCategories": {},
+                                "shippingAddress": {
+                                    "addressLine1": "161 MASON TER",
+                                    "addressLine2": "",
+                                    "addressSubType": "PRIMARY",
+                                    "addressType": "RESIDENTIAL",
+                                    "city": "BROOKLINE",
+                                    "confidenceLevel": "HIGH",
+                                    "country": "US",
+                                    "firstName": "Alex",
+                                    "fullName": "Alex SB",
+                                    "kyriosId": "256676018",
+                                    "lastName": "SB",
+                                    "latitude": "42.3311",
+                                    "longitude": "-71.1212",
+                                    "nickname": "home",
+                                    "phone": "6173199379",
+                                    "postcode": "02446-2768",
+                                    "state": "MA",
+                                    "verificationStatus": "VERIFIED"
+                                },
+                                "shippingCharge": {
+                                    "currency": "USD",
+                                    "value": "0.00"
+                                },
+                                "shippingModeCode": "FLATRATE",
+                                "shippingTax": {
+                                    "currency": "USD",
+                                    "value": "0.00"
+                                },
+                                "shippingTaxCategories": {},
+                                "subscriptionId": "",
+                                "subscriptionInfos": [],
+                                "totalProduct": {
+                                    "currency": "USD",
+                                    "value": "29.99"
+                                },
+                                "unitPrice": {
+                                    "currency": "USD",
+                                    "value": "29.99"
+                                },
+                                "wishListId": ""
+                            }
+                        ],
+                        "memberId": "256676018",
+                        "orgId": "0",
+                        "overrideIfOrderExists": true,
+                        "paymentGateway": true,
+                        "paymentInstructions": [
+                            {
+                                "accountNumber": "**** **** **** 4242",
+                                "amount": {
+                                    "currency": "USD",
+                                    "value": "88.56"
+                                },
+                                "billingAddress": {
+                                    "addressLine1": "161 MASON TER",
+                                    "addressLine2": "",
+                                    "addressSubType": "PRIMARY",
+                                    "addressType": "RESIDENTIAL",
+                                    "city": "BROOKLINE",
+                                    "confidenceLevel": "HIGH",
+                                    "country": "US",
+                                    "firstName": "Alex",
+                                    "fullName": "Alex SB",
+                                    "kyriosId": "256676018",
+                                    "lastName": "SB",
+                                    "latitude": "42.3311",
+                                    "longitude": "-71.1212",
+                                    "nickname": "home",
+                                    "phone": "6173199379",
+                                    "postcode": "02446-2768",
+                                    "state": "MA",
+                                    "verificationStatus": "VERIFIED"
+                                },
+                                "expirationMonth": "12",
+                                "expirationYear": "2026",
+                                "legacyId": 0,
+                                "payRefId": "pay-654",
+                                "paymentMethodType": "MASTERCARD",
+                                "walletId": ""
+                            }
+                        ],
+                        "promiseDeliveryDate": "2025-07-03T00:00:00Z",
+                        "remoteIp": "203.0.113.42",
+                        "replacesOrderId": "",
+                        "shippingAddress": {
+                            "addressLine1": "161 MASON TER",
+                            "addressLine2": "",
+                            "addressSubType": "PRIMARY",
+                            "addressType": "RESIDENTIAL",
+                            "city": "BROOKLINE",
+                            "confidenceLevel": "HIGH",
+                            "country": "US",
+                            "firstName": "Alex",
+                            "fullName": "Alex SB",
+                            "kyriosId": "256676018",
+                            "lastName": "SB",
+                            "latitude": "42.3311",
+                            "longitude": "-71.1212",
+                            "nickname": "home",
+                            "phone": "6173199379",
+                            "postcode": "02446-2768",
+                            "state": "MA",
+                            "verificationStatus": "VERIFIED"
+                        },
+                        "siteId": "0",
+                        "skipOms": true,
+                        "sourceId": "web-checkout",
+                        "status": "PAYMENT_REQUIRES_REVIEW",
+                        "subSiteId": "0",
+                        "submitter": "CUSTOMER",
+                        "submitterId": "256676018",
+                        "subscriptionInfos": [],
+                        "timePlaced": "2025-06-27T14:56:20.447Z",
+                        "timeUpdated": "2025-06-27T14:56:20.447Z",
+                        "total": {
+                            "currency": "USD",
+                            "value": "88.56"
+                        }
+                    }
+                }
+            },
+            "End": true
+        }
+    },
+    "QueryLanguage": "JSONPath"
+}

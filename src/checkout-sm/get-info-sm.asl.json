@@ -14,6 +14,11 @@
                     "Variable": "$.operation",
                     "StringEquals": "DELETE",
                     "Next": "InvokeOperationNoBody"
+                },
+                {
+                    "Variable": "$.operation",
+                    "StringEquals": "POST",
+                    "Next": "InvokeOperationWithBody"
                 }
             ],
             "Default": "InvokeOperationWithBody"
@@ -41,7 +46,7 @@
                     "ConnectionArn.$": "$.connectionArn"
                 },
                 "Headers.$": "$.headers",
-                "RequestBody.$": "States.JsonToString($.body)"
+                "RequestBody.$": "States.JsonToString($.RequestBody)"
             },
             "End": true
         }

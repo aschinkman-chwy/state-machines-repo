@@ -79,7 +79,7 @@
                 "Headers": {
                     "Content-Type": "application/json"
                 },
-                "RequestBody": {
+                "body": {
                     "query": "query { newOrderExternalId { value } }"
                 }
             },

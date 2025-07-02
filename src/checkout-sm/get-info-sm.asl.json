@@ -46,7 +46,7 @@
                     "ConnectionArn.$": "$.connectionArn"
                 },
                 "Headers.$": "$.headers",
-                "RequestBody.$": "States.JsonToString($.RequestBody)"
+                "RequestBody.$": "$.RequestBody"
             },
             "End": true
         }

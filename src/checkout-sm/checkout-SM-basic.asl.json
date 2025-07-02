@@ -65,25 +65,59 @@
                 "cartId.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.id"
             },
             "ResultPath": "$.ExtractedCartId",
-            "Next": "CreateOrderId"
+            "Next": "UpdatePaymentInst"
         },
-        "CreateOrderId": {
+        "UpdatePaymentInst": {
             "Type": "Task",
-            "Resource": "arn:aws:states:::http:invoke",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
             "Parameters": {
-                "ApiEndpoint": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/graphql",
-                "Method": "POST",
-                "Authentication": {
-                    "ConnectionArn.$": "$.connectionArn"
-                },
-                "Headers": {
-                    "Content-Type": "application/json"
-                },
-                "body": {
-                    "query": "query { newOrderExternalId { value } }"
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/cart-b/api/v1/cart/payment-instruction",
+                    "urlSuffix": "",
+                    "operation": "PUT",
+                    "connectionArn.$": "$.connectionArn",
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "account.$": "$.userId"
+                    },
+                    "RequestBody": {
+                        "id": "new-payment-instruction-12345678",
+                        "walletId.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.paymentInstructions[0].walletId",
+                        "paymentMethodId": "new-payment-method-789",
+                        "paymentMethodType": "CREDIT_CARD",
+                        "amount.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total",
+                        "additionalData": {
+                            "cardFlag": "VISA",
+                            "cardLast4": "4242",
+                            "expiryMonth": "12",
+                            "expiryYear": "2026",
+                            "billingAddress": {
+                                "addressLine1.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].street1",
+                                "city.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].city",
+                                "state.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].state",
+                                "postcode.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].postcode",
+                                "country.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].country"
+                            }
+                        }
+                    }
                 }
             },
-            "ResultPath": "$.orderConfirmationId",
+            "ResultPath": "$.UpdatedPaymentInfo",
+            "Next": "ExtractOrderConfirmationNumber"
+        },
+        "ExtractOrderConfirmationNumber": {
+            "Type": "Pass",
+            "Parameters": {
+                "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.orderConfirmationId"
+            },
+            "ResultPath": "$.OrderConfirmationNum",
+            "Next": "TransformCartItems"
+        },
+        "TransformCartItems": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-east-1:243249644484:function:transform-cart-items",
+            "ResultPath": "$.TransformedCartItems",
             "Next": "InventoryAlloc"
         },
         "InventoryAlloc": {
@@ -92,24 +126,38 @@
             "Parameters": {
                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                 "Input": {
-                    "url": " https://inventory-svc.use1.scff.qat.aws.chewy.cloud/v1/inventory/allocations",
-                    "urlSuffix": "",
-                    "connectionArn.$": "$.connectionArn",
+                    "url": "https://inventory-svc.use1.scff.dev.aws.chewy.cloud/v1",
+                    "urlSuffix": "/inventory/allocations",
+                    "connectionArn.$": "$.inventoryAllocConnectionArn",
                     "operation": "POST",
-                    "body": {
+                    "RequestBody": {
                         "data": {
                             "type": "allocationV2",
                             "attributes": {
-                                "externalId.$": "$.ExtractedCartId.cartId",
-                                "allocationPartNumbers.$": "$.TransformedCartItems.allocationPartNumbers"
+                                "externalId.$": "States.Format('CustomerOrder.{}', $.OrderConfirmationNum.orderConfirmationNum)",
+                                "partNumbers.$": "$.TransformedCartItems.partNumbers"
                             }
                         }
                     },
-                    "headers": {
-                        "Content-Type": "application/json"
-                    }
+                    "headers": {}
                 }
             },
+            "ResultPath": "$.InventoryAllocationResult",
+            "Next": "FraudCheck"
+        },
+        "FraudCheck": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "connectionArn.$": "$.preauthFraudConnectionArn",
+                    "url": "https://preauth-v2.use1.corp.dev.aws.chewy.cloud",
+                    "urlSuffix": "/PreAuthScreen",
+                    "operation": "POST"
+                }
+            },
+            "ResultPath": "$.ScreenCheckResult",
             "Next": "CreateOrder"
         },
         "CreateOrder": {
@@ -126,7 +174,7 @@
                         "Content-Type": "application/json"
                     },
                     "operation": "POST",
-                    "body": {
+                    "RequestBody": {
                         "adjustments": [
                             {
                                 "calculationUsage": "RDF_ADJUSTMENT",

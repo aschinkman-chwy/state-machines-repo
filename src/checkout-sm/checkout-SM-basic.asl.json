@@ -23,7 +23,17 @@
                                     "operation": "GET"
                                 }
                             },
+                            "ResultSelector": {
+                                "ResponseBody.$": "$.Output.ResponseBody"
+                            },
                             "ResultPath": "$.UserInfo",
+                            "Next": "FilterUserInfo"
+                        },
+                        "FilterUserInfo": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "UserInfo.$": "$.UserInfo"
+                            },
                             "End": true
                         }
                     }
@@ -46,25 +56,23 @@
                                     "operation": "GET"
                                 }
                             },
+                            "ResultSelector": {
+                                "ResponseBody.$": "$.Output.ResponseBody"
+                            },
                             "ResultPath": "$.CartInfo",
+                            "Next": "FilterCartInfo"
+                        },
+                        "FilterCartInfo": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "CartInfo.$": "$.CartInfo"
+                            },
                             "End": true
                         }
                     }
                 }
             ],
-            "Parameters": {
-                "connectionArn.$": "$.connectionArn",
-                "userId.$": "$.userId"
-            },
             "ResultPath": "$.UserCartInfo",
-            "Next": "ExtractCartId"
-        },
-        "ExtractCartId": {
-            "Type": "Pass",
-            "Parameters": {
-                "cartId.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.id"
-            },
-            "ResultPath": "$.ExtractedCartId",
             "Next": "UpdatePaymentInst"
         },
         "UpdatePaymentInst": {
@@ -93,38 +101,29 @@
                             "expiryMonth": "12",
                             "expiryYear": "2026",
                             "billingAddress": {
-                                "addressLine1.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].street1",
-                                "city.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].city",
-                                "state.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].state",
-                                "postcode.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].postcode",
-                                "country.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0].country"
+                                "addressLine1.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0].street1",
+                                "city.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0].city",
+                                "state.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0].state",
+                                "postcode.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0].postcode",
+                                "country.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0].country"
                             }
                         }
                     }
                 }
             },
-            "ResultPath": "$.UpdatedPaymentInfo",
-            "Next": "CreateOrderConfirmId"
-        },
-        "CreateOrderConfirmId": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::http:invoke",
-            "Parameters": {
-                "ApiEndpoint": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/graphql",
-                "Method": "POST",
-                "InvocationConfig": {
-                    "ConnectionArn.$": "$.orderIdConnectionArn"
-                },
-                "Headers": {
-                    "Content-Type": "application/json"
-                },
-                "RequestBody": "{\"query\":\"query { newOrderExternalId { value } }\"}"
+            "ResultSelector": {
+                "ResponseBody.$": "$.Output.ResponseBody",
+                "ExtractedXrequestedId.$": "$.Output.Headers.x-request-id[0]"
             },
-            "ResultPath": "$.orderConfirmationId",
+            "ResultPath": "$.UpdatedPaymentInfo",
             "Next": "DataExtractionTransformation"
         },
         "DataExtractionTransformation": {
             "Type": "Parallel",
+            "ResultSelector": {
+                "OrderConfirmationNum.$": "$[0].OrderConfirmationNum.orderConfirmationNum",
+                "TransformedCartItems.$": "$[1].TransformedCartItems.ResponseBody"
+            },
             "ResultPath": "$.DataExtractionResult",
             "Next": "Parallel",
             "Branches": [
@@ -134,7 +133,7 @@
                         "ExtractOrderConfirmationNumber": {
                             "Type": "Pass",
                             "Parameters": {
-                                "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.orderConfirmationId"
+                                "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId"
                             },
                             "ResultPath": "$.OrderConfirmationNum",
                             "End": true
@@ -147,6 +146,9 @@
                         "TransformCartItems": {
                             "Type": "Task",
                             "Resource": "arn:aws:lambda:us-east-1:243249644484:function:transform-cart-items",
+                            "ResultSelector": {
+                                "ResponseBody.$": "$"
+                            },
                             "ResultPath": "$.TransformedCartItems",
                             "End": true
                         }
@@ -156,6 +158,10 @@
         },
         "Parallel": {
             "Type": "Parallel",
+            "ResultSelector": {
+                "AdjustmentsResult.$": "$[0].AdjustmentsResult.ResponseBody",
+                "PlutusResult.$": "$[1].PlutusResult.ResponseBody"
+            },
             "Next": "InventoryFraud",
             "ResultPath": "$.AdjustmentsTaxResult",
             "Branches": [
@@ -176,9 +182,9 @@
                                         "accountId.$": "$.userId"
                                     },
                                     "RequestBody": {
-                                        "cart_id.$": "$.ExtractedCartId.cartId",
-                                        "cart_type.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.cartType",
-                                        "account_type.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.registerType",
+                                        "cart_id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.id",
+                                        "cart_type.$": "$.UserCartInfo[1].CartInfo.ResponseBody.cartType",
+                                        "account_type.$": "$.UserCartInfo[0].UserInfo.ResponseBody.registerType",
                                         "org_id": null,
                                         "pet_id": null,
                                         "enable_display_adjustments": true,
@@ -187,62 +193,62 @@
                                         "payment_types": {},
                                         "order_items": [
                                             {
-                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].id",
+                                                "id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].id",
                                                 "cat_entry_id": null,
-                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].partNumber",
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].partNumber",
                                                 "personalization_attributes": {},
-                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].quantity",
-                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].unitPrice",
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].unitPrice",
                                                 "shipping_price": 0,
-                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].totalPrice",
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].totalPrice",
                                                 "is_adjustment_editable": null,
                                                 "components": [],
                                                 "auto_add": false,
-                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].recurring",
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].recurring",
                                                 "line_number": "1",
                                                 "plan_id": null,
                                                 "plan_item_id": null,
                                                 "plan_type": null
                                             },
                                             {
-                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].id",
+                                                "id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].id",
                                                 "cat_entry_id": null,
-                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].partNumber",
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].partNumber",
                                                 "personalization_attributes": {},
-                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].quantity",
-                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].unitPrice",
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].unitPrice",
                                                 "shipping_price": 0,
-                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].totalPrice",
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].totalPrice",
                                                 "is_adjustment_editable": null,
                                                 "components": [],
                                                 "auto_add": false,
-                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].recurring",
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].recurring",
                                                 "line_number": "2",
                                                 "plan_id": null,
                                                 "plan_item_id": null,
                                                 "plan_type": null
                                             },
                                             {
-                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].id",
+                                                "id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].id",
                                                 "cat_entry_id": null,
-                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].partNumber",
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].partNumber",
                                                 "personalization_attributes": {},
-                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].quantity",
-                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].unitPrice",
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].unitPrice",
                                                 "shipping_price": 0,
-                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].totalPrice",
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].totalPrice",
                                                 "is_adjustment_editable": null,
                                                 "components": [],
                                                 "auto_add": false,
-                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].recurring",
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].recurring",
                                                 "line_number": "3",
                                                 "plan_id": null,
                                                 "plan_item_id": null,
                                                 "plan_type": null
                                             }
                                         ],
-                                        "total_product.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.itemTotal",
-                                        "total_shipping.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.shippingTotal",
+                                        "total_product.$": "$.UserCartInfo[1].CartInfo.ResponseBody.itemTotal",
+                                        "total_shipping.$": "$.UserCartInfo[1].CartInfo.ResponseBody.shippingTotal",
                                         "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
                                         "codes": [],
                                         "order_placement_date_time": null,
@@ -255,6 +261,9 @@
                                         "intent": "init-checkout"
                                     }
                                 }
+                            },
+                            "ResultSelector": {
+                                "ResponseBody.$": "$.Output.ResponseBody"
                             },
                             "ResultPath": "$.AdjustmentsResult",
                             "End": true
@@ -274,7 +283,7 @@
                                     "urlSuffix": "/tax/quote",
                                     "connectionArn.$": "$.connectionArn",
                                     "headers": {
-                                        "x-request-id.$": "$.UpdatedPaymentInfo.Output.Headers.x-request-id[0]",
+                                        "x-request-id.$": "$.UpdatedPaymentInfo.ExtractedXrequestedId",
                                         "x-api-key": "MDQ4NmIwNjA3MTMxM2M3NDI2MzdiNzA4NzFlMzFkMGM5ZDYwMDliNWQ1Mzc2NzgwMzA1YWI1YWUxMGFkMTY4Zgo="
                                     },
                                     "operation": "POST",
@@ -378,6 +387,9 @@
                                     }
                                 }
                             },
+                            "ResultSelector": {
+                                "ResponseBody.$": "$.Output.ResponseBody"
+                            },
                             "ResultPath": "$.PlutusResult",
                             "End": true
                         }
@@ -387,6 +399,10 @@
         },
         "InventoryFraud": {
             "Type": "Parallel",
+            "ResultSelector": {
+                "InventoryAllocationResult.$": "$[0].InventoryAllocationResult.ResponseBody",
+                "ScreenCheckResult.$": "$[1].ScreenCheckResult.ResponseBody"
+            },
             "ResultPath": "$.InventoryFraudResult",
             "Branches": [
                 {
@@ -406,13 +422,16 @@
                                         "data": {
                                             "type": "allocationV2",
                                             "attributes": {
-                                                "externalId.$": "States.Format('CustomerOrder.{}', $.DataExtractionResult[0].OrderConfirmationNum.orderConfirmationNum)",
-                                                "partNumbers.$": "$.DataExtractionResult[1].TransformedCartItems.partNumbers"
+                                                "externalId.$": "States.Format('CustomerOrder.{}', $.DataExtractionResult.OrderConfirmationNum)",
+                                                "partNumbers.$": "$.DataExtractionResult.TransformedCartItems.partNumbers"
                                             }
                                         }
                                     },
                                     "headers": {}
                                 }
+                            },
+                            "ResultSelector": {
+                                "ResponseBody.$": "$.Output.ResponseBody"
                             },
                             "ResultPath": "$.InventoryAllocationResult",
                             "End": true
@@ -438,26 +457,26 @@
                                             "accept_language": "en-US",
                                             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                                         },
-                                        "created_at.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.createdTime",
-                                        "closed_at.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.modifiedTime",
-                                        "cart_token.$": "$.ExtractedCartId.cartId",
+                                        "created_at.$": "$.UserCartInfo[1].CartInfo.ResponseBody.createdTime",
+                                        "closed_at.$": "$.UserCartInfo[1].CartInfo.ResponseBody.modifiedTime",
+                                        "cart_token.$": "$.UserCartInfo[1].CartInfo.ResponseBody.id",
                                         "customer": {
                                             "customer_id.$": "$.userId"
                                         },
-                                        "currency.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.currencyCode",
-                                        "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total",
-                                        "line_items.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items",
-                                        "shipping_address.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0]",
-                                        "payment_details.$": "$.UpdatedPaymentInfo.Output.ResponseBody",
+                                        "currency.$": "$.UserCartInfo[1].CartInfo.ResponseBody.currencyCode",
+                                        "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.total",
+                                        "line_items.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items",
+                                        "shipping_address.$": "$.UserCartInfo[0].UserInfo.ResponseBody.addresses[0]",
+                                        "payment_details.$": "$.UpdatedPaymentInfo.ResponseBody",
                                         "order_type": "ONLINE",
                                         "submitter": "CUSTOMER",
-                                        "partNumbers.$": "$.DataExtractionResult[1].TransformedCartItems.partNumbers"
+                                        "partNumbers.$": "$.DataExtractionResult.TransformedCartItems.partNumbers"
                                     },
                                     "headers": {}
                                 }
                             },
                             "ResultSelector": {
-                                "action.$": "$.Output.ResponseBody.action"
+                                "ResponseBody.$": "$.Output.ResponseBody"
                             },
                             "ResultPath": "$.ScreenCheckResult",
                             "End": true
@@ -465,33 +484,6 @@
                     }
                 }
             ],
-            "Next": "PaymentsBApprove"
-        },
-        "PaymentsBApprove": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::states:startExecution.sync:2",
-            "TimeoutSeconds": 60,
-            "Parameters": {
-                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
-                "Input": {
-                    "url": "https://payments-b-use1.opta.dev.aws.chewy.cloud/api/v1",
-                    "urlSuffix": "/payment/approve",
-                    "operation": "POST",
-                    "connectionArn.$": "$.paymentsBLegacyConnectionArn",
-                    "headers": {
-                        "x-request-id.$": "$.UpdatedPaymentInfo.Output.Headers.x-request-id[0]"
-                    },
-                    "RequestBody": {
-                        "order-id.$": "$.DataExtractionResult[0].OrderConfirmationNum.orderConfirmationNum",
-                        "order-type": "ONLINE",
-                        "payment-event-id.$": "$.UpdatedPaymentInfo.Output.ResponseBody[0].id",
-                        "request-timestamp.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.modifiedTime",
-                        "currency.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.currencyCode",
-                        "requested-amount.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total"
-                    }
-                }
-            },
-            "ResultPath": "$.PaymentsBApproveResult",
             "End": true
         }
     },

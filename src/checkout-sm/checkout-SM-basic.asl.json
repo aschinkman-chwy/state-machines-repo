@@ -83,10 +83,10 @@
                     },
                     "RequestBody": {
                         "id": "new-payment-instruction-12345678",
-                        "walletId.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.paymentInstructions[0].walletId",
-                        "paymentMethodId": "new-payment-method-789",
-                        "paymentMethodType": "CREDIT_CARD",
-                        "amount.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total",
+                        "walletId": "0d1d26fb-b9bd-4fc9-b5bd-d5ba13a3471e",
+                        "paymentMethodId": "5b9ce7e6-6756-44c2-83b5-16ae94411602",
+                        "paymentMethodType": "CREDITCARD",
+                        "amount": "94.10",
                         "additionalData": {
                             "cardFlag": "VISA",
                             "cardLast4": "4242",
@@ -104,279 +104,394 @@
                 }
             },
             "ResultPath": "$.UpdatedPaymentInfo",
-            "Next": "ExtractOrderConfirmationNumber"
+            "Next": "CreateOrderConfirmId"
         },
-        "ExtractOrderConfirmationNumber": {
-            "Type": "Pass",
+        "CreateOrderConfirmId": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
             "Parameters": {
-                "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.orderConfirmationId"
+                "ApiEndpoint": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/graphql",
+                "Method": "POST",
+                "InvocationConfig": {
+                    "ConnectionArn.$": "$.orderIdConnectionArn"
+                },
+                "Headers": {
+                    "Content-Type": "application/json"
+                },
+                "RequestBody": "{\"query\":\"query { newOrderExternalId { value } }\"}"
             },
-            "ResultPath": "$.OrderConfirmationNum",
-            "Next": "TransformCartItems"
+            "ResultPath": "$.orderConfirmationId",
+            "Next": "DataExtractionTransformation"
         },
-        "TransformCartItems": {
-            "Type": "Task",
-            "Resource": "arn:aws:lambda:us-east-1:243249644484:function:transform-cart-items",
-            "ResultPath": "$.TransformedCartItems",
-            "Next": "InventoryAlloc"
-        },
-        "InventoryAlloc": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::states:startExecution.sync:2",
-            "Parameters": {
-                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
-                "Input": {
-                    "url": "https://inventory-svc.use1.scff.dev.aws.chewy.cloud/v1",
-                    "urlSuffix": "/inventory/allocations",
-                    "connectionArn.$": "$.inventoryAllocConnectionArn",
-                    "operation": "POST",
-                    "RequestBody": {
-                        "data": {
-                            "type": "allocationV2",
-                            "attributes": {
-                                "externalId.$": "States.Format('CustomerOrder.{}', $.OrderConfirmationNum.orderConfirmationNum)",
-                                "partNumbers.$": "$.TransformedCartItems.partNumbers"
-                            }
+        "DataExtractionTransformation": {
+            "Type": "Parallel",
+            "ResultPath": "$.DataExtractionResult",
+            "Next": "Parallel",
+            "Branches": [
+                {
+                    "StartAt": "ExtractOrderConfirmationNumber",
+                    "States": {
+                        "ExtractOrderConfirmationNumber": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.orderConfirmationId"
+                            },
+                            "ResultPath": "$.OrderConfirmationNum",
+                            "End": true
                         }
-                    },
-                    "headers": {}
-                }
-            },
-            "ResultPath": "$.InventoryAllocationResult",
-            "Next": "FraudCheck"
-        },
-        "FraudCheck": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::states:startExecution.sync:2",
-            "Parameters": {
-                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
-                "Input": {
-                    "connectionArn.$": "$.preauthFraudConnectionArn",
-                    "url": "https://preauth-v2.use1.corp.dev.aws.chewy.cloud",
-                    "urlSuffix": "/PreAuthScreen",
-                    "operation": "POST"
-                }
-            },
-            "ResultPath": "$.ScreenCheckResult",
-            "Next": "CreateOrder"
-        },
-        "CreateOrder": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::states:startExecution.sync:2",
-            "Parameters": {
-                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
-                "Input": {
-                    "url": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud/api/v1/orders",
-                    "urlSuffix": "",
-                    "connectionArn.$": "$.connectionArn",
-                    "headers": {
-                        "x-request-id.$": "$.UserCartInfo[1].CartInfo.Output.Headers['x-request-id'][0]",
-                        "Content-Type": "application/json"
-                    },
-                    "operation": "POST",
-                    "RequestBody": {
-                        "adjustments": [
-                            {
-                                "calculationUsage": "RDF_ADJUSTMENT",
-                                "description": "10% off promotion",
-                                "displayLevel": "LINE_ITEM",
-                                "promotionCode": "SUMMER10",
-                                "promotionId": "promo-123",
-                                "submitLineItemAdjustments": [
-                                    {
-                                        "amount": {
-                                            "currency": "USD",
-                                            "value": "8.86"
-                                        },
-                                        "lineNumber": 0
-                                    }
-                                ],
-                                "type": "PROMOTION"
-                            }
-                        ],
-                        "attributes": {
-                            "sourceSystem": "CHEWY",
-                            "orderOrigin": "WEB"
-                        },
-                        "attributionId": "duagf0G9Ra6i2XN9T8Xm3w",
-                        "attributionType": "PERSONALIZATION",
-                        "businessChannel": "WEB",
-                        "currency": "USD",
-                        "donationOrgId": "0",
-                        "email1": "alex@example.com",
-                        "expectedFulfillmentDate": "2025-07-01T12:00:00Z",
-                        "externalOrderId": "order-456",
-                        "fees": [
-                            {
-                                "amount": {
-                                    "currency": "USD",
-                                    "value": "1.50"
-                                },
-                                "shortDescription": "Service Fee",
-                                "type": "SERVICE"
-                            }
-                        ],
-                        "fraudSessionId": "fraud-789",
-                        "incomplete": false,
-                        "inventoryAllocationId": "alloc-321",
-                        "lineItems": [
-                            {
-                                "appointmentDate": "2025-07-02T09:00:00Z",
-                                "attributes": {
-                                    "gift": "false"
-                                },
-                                "autoAdd": false,
-                                "bundleComponents": [],
-                                "currency": "USD",
-                                "earnedRewards": {
-                                    "currency": "USD",
-                                    "reason": "LOYALTY",
-                                    "value": "0.00"
-                                },
-                                "fulfillmentCenter": "AVP1",
-                                "isAutoRefill": false,
-                                "lineNumber": 1,
-                                "oneTime": true,
-                                "personalizationAttributeMap": {},
-                                "product": {
-                                    "attributes": [
-                                        "VET_DIET"
-                                    ],
-                                    "bundleTitle": "",
-                                    "catalogEntryId": "143501",
-                                    "description": "Kalmbach Feeds Organic Harvest 17% Protein Layer Pellets Chicken Feed, 25-lb bag",
-                                    "name": "Chicken Feed 25lb",
-                                    "partNumber": "143501"
-                                },
-                                "promiseDeliveryDate": "2025-07-03T00:00:00Z",
-                                "quantity": 1,
-                                "salesTax": {
-                                    "currency": "USD",
-                                    "value": "7.10"
-                                },
-                                "salesTaxCategories": {},
-                                "shippingAddress": {
-                                    "addressLine1": "161 MASON TER",
-                                    "addressLine2": "",
-                                    "addressSubType": "PRIMARY",
-                                    "addressType": "RESIDENTIAL",
-                                    "city": "BROOKLINE",
-                                    "confidenceLevel": "HIGH",
-                                    "country": "US",
-                                    "firstName": "Alex",
-                                    "fullName": "Alex SB",
-                                    "kyriosId": "256676018",
-                                    "lastName": "SB",
-                                    "latitude": "42.3311",
-                                    "longitude": "-71.1212",
-                                    "nickname": "home",
-                                    "phone": "6173199379",
-                                    "postcode": "02446-2768",
-                                    "state": "MA",
-                                    "verificationStatus": "VERIFIED"
-                                },
-                                "shippingCharge": {
-                                    "currency": "USD",
-                                    "value": "0.00"
-                                },
-                                "shippingModeCode": "FLATRATE",
-                                "shippingTax": {
-                                    "currency": "USD",
-                                    "value": "0.00"
-                                },
-                                "shippingTaxCategories": {},
-                                "subscriptionId": "",
-                                "subscriptionInfos": [],
-                                "totalProduct": {
-                                    "currency": "USD",
-                                    "value": "29.99"
-                                },
-                                "unitPrice": {
-                                    "currency": "USD",
-                                    "value": "29.99"
-                                },
-                                "wishListId": ""
-                            }
-                        ],
-                        "memberId": "256676018",
-                        "orgId": "0",
-                        "overrideIfOrderExists": true,
-                        "paymentGateway": true,
-                        "paymentInstructions": [
-                            {
-                                "accountNumber": "**** **** **** 4242",
-                                "amount": {
-                                    "currency": "USD",
-                                    "value": "88.56"
-                                },
-                                "billingAddress": {
-                                    "addressLine1": "161 MASON TER",
-                                    "addressLine2": "",
-                                    "addressSubType": "PRIMARY",
-                                    "addressType": "RESIDENTIAL",
-                                    "city": "BROOKLINE",
-                                    "confidenceLevel": "HIGH",
-                                    "country": "US",
-                                    "firstName": "Alex",
-                                    "fullName": "Alex SB",
-                                    "kyriosId": "256676018",
-                                    "lastName": "SB",
-                                    "latitude": "42.3311",
-                                    "longitude": "-71.1212",
-                                    "nickname": "home",
-                                    "phone": "6173199379",
-                                    "postcode": "02446-2768",
-                                    "state": "MA",
-                                    "verificationStatus": "VERIFIED"
-                                },
-                                "expirationMonth": "12",
-                                "expirationYear": "2026",
-                                "legacyId": 0,
-                                "payRefId": "pay-654",
-                                "paymentMethodType": "MASTERCARD",
-                                "walletId": ""
-                            }
-                        ],
-                        "promiseDeliveryDate": "2025-07-03T00:00:00Z",
-                        "remoteIp": "203.0.113.42",
-                        "replacesOrderId": "",
-                        "shippingAddress": {
-                            "addressLine1": "161 MASON TER",
-                            "addressLine2": "",
-                            "addressSubType": "PRIMARY",
-                            "addressType": "RESIDENTIAL",
-                            "city": "BROOKLINE",
-                            "confidenceLevel": "HIGH",
-                            "country": "US",
-                            "firstName": "Alex",
-                            "fullName": "Alex SB",
-                            "kyriosId": "256676018",
-                            "lastName": "SB",
-                            "latitude": "42.3311",
-                            "longitude": "-71.1212",
-                            "nickname": "home",
-                            "phone": "6173199379",
-                            "postcode": "02446-2768",
-                            "state": "MA",
-                            "verificationStatus": "VERIFIED"
-                        },
-                        "siteId": "0",
-                        "skipOms": true,
-                        "sourceId": "web-checkout",
-                        "status": "PAYMENT_REQUIRES_REVIEW",
-                        "subSiteId": "0",
-                        "submitter": "CUSTOMER",
-                        "submitterId": "256676018",
-                        "subscriptionInfos": [],
-                        "timePlaced": "2025-06-27T14:56:20.447Z",
-                        "timeUpdated": "2025-06-27T14:56:20.447Z",
-                        "total": {
-                            "currency": "USD",
-                            "value": "88.56"
+                    }
+                },
+                {
+                    "StartAt": "TransformCartItems",
+                    "States": {
+                        "TransformCartItems": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-east-1:243249644484:function:transform-cart-items",
+                            "ResultPath": "$.TransformedCartItems",
+                            "End": true
                         }
                     }
                 }
+            ]
+        },
+        "Parallel": {
+            "Type": "Parallel",
+            "Next": "InventoryFraud",
+            "ResultPath": "$.AdjustmentsTaxResult",
+            "Branches": [
+                {
+                    "StartAt": "Adjustments",
+                    "States": {
+                        "Adjustments": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/ns/promotions/adjustments-svc/v1/adjustments",
+                                    "urlSuffix": "/apply",
+                                    "connectionArn.$": "$.connectionArn",
+                                    "operation": "POST",
+                                    "headers": {
+                                        "accountId.$": "$.userId"
+                                    },
+                                    "RequestBody": {
+                                        "cart_id.$": "$.ExtractedCartId.cartId",
+                                        "cart_type.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.cartType",
+                                        "account_type.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.registerType",
+                                        "org_id": null,
+                                        "pet_id": null,
+                                        "enable_display_adjustments": true,
+                                        "id": -1,
+                                        "is_autoship": false,
+                                        "payment_types": {},
+                                        "order_items": [
+                                            {
+                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].id",
+                                                "cat_entry_id": null,
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].partNumber",
+                                                "personalization_attributes": {},
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].unitPrice",
+                                                "shipping_price": 0,
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].totalPrice",
+                                                "is_adjustment_editable": null,
+                                                "components": [],
+                                                "auto_add": false,
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[0].recurring",
+                                                "line_number": "1",
+                                                "plan_id": null,
+                                                "plan_item_id": null,
+                                                "plan_type": null
+                                            },
+                                            {
+                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].id",
+                                                "cat_entry_id": null,
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].partNumber",
+                                                "personalization_attributes": {},
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].unitPrice",
+                                                "shipping_price": 0,
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].totalPrice",
+                                                "is_adjustment_editable": null,
+                                                "components": [],
+                                                "auto_add": false,
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[1].recurring",
+                                                "line_number": "2",
+                                                "plan_id": null,
+                                                "plan_item_id": null,
+                                                "plan_type": null
+                                            },
+                                            {
+                                                "id.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].id",
+                                                "cat_entry_id": null,
+                                                "part_number.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].partNumber",
+                                                "personalization_attributes": {},
+                                                "quantity.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].quantity",
+                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].unitPrice",
+                                                "shipping_price": 0,
+                                                "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].totalPrice",
+                                                "is_adjustment_editable": null,
+                                                "components": [],
+                                                "auto_add": false,
+                                                "autoship.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items[2].recurring",
+                                                "line_number": "3",
+                                                "plan_id": null,
+                                                "plan_item_id": null,
+                                                "plan_type": null
+                                            }
+                                        ],
+                                        "total_product.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.itemTotal",
+                                        "total_shipping.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.shippingTotal",
+                                        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+                                        "codes": [],
+                                        "order_placement_date_time": null,
+                                        "use_rewards": false,
+                                        "autoship_id": null,
+                                        "loyalty_signup": {
+                                            "present": true
+                                        },
+                                        "loyalty_signup_payment_details": null,
+                                        "intent": "init-checkout"
+                                    }
+                                }
+                            },
+                            "ResultPath": "$.AdjustmentsResult",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Plutus",
+                    "States": {
+                        "Plutus": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/api/tax-svc",
+                                    "urlSuffix": "/tax/quote",
+                                    "connectionArn.$": "$.connectionArn",
+                                    "headers": {
+                                        "x-request-id.$": "$.UpdatedPaymentInfo.Output.Headers.x-request-id[0]",
+                                        "x-api-key": "MDQ4NmIwNjA3MTMxM2M3NDI2MzdiNzA4NzFlMzFkMGM5ZDYwMDliNWQ1Mzc2NzgwMzA1YWI1YWUxMGFkMTY4Zgo="
+                                    },
+                                    "operation": "POST",
+                                    "RequestBody": {
+                                        "requestId": "5000000667",
+                                        "storeId": null,
+                                        "origin": "CHECKOUT",
+                                        "currency": "USD",
+                                        "addressOverride": null,
+                                        "orderItems": [
+                                            {
+                                                "id": "15f7fe1a-073f-4d7b-9da2-ad21ce49f7db",
+                                                "quantity": 1,
+                                                "partNumber": "285345",
+                                                "totalProduct": 31.58,
+                                                "shipCharge": 0,
+                                                "shippingAdjustmentTotal": 0,
+                                                "skuId": "311714",
+                                                "discountAdjustmentTotal": 0,
+                                                "totalChewyFundedAdjustment": null,
+                                                "totalVendorFundedAdjustment": null,
+                                                "catalogIdentifier": "m-chicken-feed-feed",
+                                                "memberId": "256676018",
+                                                "memberType": "U",
+                                                "ffmCenterName": null,
+                                                "address": {
+                                                    "id": "217789166",
+                                                    "city": "BROOKLINE",
+                                                    "state": "MA",
+                                                    "street1": "*** M**** T**",
+                                                    "postcode": "**********",
+                                                    "country": "US",
+                                                    "latitude": null,
+                                                    "longitude": null
+                                                },
+                                                "rxRequired": false,
+                                                "wholesalePharmacyItem": false,
+                                                "starkAppointmentItem": false
+                                            },
+                                            {
+                                                "id": "17525a2f-9ca5-4091-82a1-129216d23713",
+                                                "quantity": 1,
+                                                "partNumber": "143501",
+                                                "totalProduct": 29.99,
+                                                "shipCharge": 0,
+                                                "shippingAdjustmentTotal": 0,
+                                                "skuId": "170375",
+                                                "discountAdjustmentTotal": 0,
+                                                "totalChewyFundedAdjustment": null,
+                                                "totalVendorFundedAdjustment": null,
+                                                "catalogIdentifier": "m-chicken-feed-feed",
+                                                "memberId": "256676018",
+                                                "memberType": "U",
+                                                "ffmCenterName": null,
+                                                "address": {
+                                                    "id": "217789166",
+                                                    "city": "BROOKLINE",
+                                                    "state": "MA",
+                                                    "street1": "*** M**** T**",
+                                                    "postcode": "**********",
+                                                    "country": "US",
+                                                    "latitude": null,
+                                                    "longitude": null
+                                                },
+                                                "rxRequired": false,
+                                                "wholesalePharmacyItem": false,
+                                                "starkAppointmentItem": false
+                                            },
+                                            {
+                                                "id": "30172cc6-e122-4774-af5b-dff5ea3dc43c",
+                                                "quantity": 1,
+                                                "partNumber": "235297",
+                                                "totalProduct": 26.99,
+                                                "shipCharge": 0,
+                                                "shippingAdjustmentTotal": 0,
+                                                "skuId": "261792",
+                                                "discountAdjustmentTotal": 0,
+                                                "totalChewyFundedAdjustment": null,
+                                                "totalVendorFundedAdjustment": null,
+                                                "catalogIdentifier": "m-chicken-feed-feed",
+                                                "memberId": "256676018",
+                                                "memberType": "U",
+                                                "ffmCenterName": null,
+                                                "address": {
+                                                    "id": "217789166",
+                                                    "city": "BROOKLINE",
+                                                    "state": "MA",
+                                                    "street1": "*** M**** T**",
+                                                    "postcode": "**********",
+                                                    "country": "US",
+                                                    "latitude": null,
+                                                    "longitude": null
+                                                },
+                                                "rxRequired": false,
+                                                "wholesalePharmacyItem": false,
+                                                "starkAppointmentItem": false
+                                            }
+                                        ],
+                                        "cartType": "ACTIVE",
+                                        "orgId": null
+                                    }
+                                }
+                            },
+                            "ResultPath": "$.PlutusResult",
+                            "End": true
+                        }
+                    }
+                }
+            ]
+        },
+        "InventoryFraud": {
+            "Type": "Parallel",
+            "ResultPath": "$.InventoryFraudResult",
+            "Branches": [
+                {
+                    "StartAt": "InventoryAlloc",
+                    "States": {
+                        "InventoryAlloc": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "url": "https://inventory-svc.use1.scff.dev.aws.chewy.cloud/v1",
+                                    "urlSuffix": "/inventory/allocations",
+                                    "connectionArn.$": "$.inventoryAllocConnectionArn",
+                                    "operation": "POST",
+                                    "RequestBody": {
+                                        "data": {
+                                            "type": "allocationV2",
+                                            "attributes": {
+                                                "externalId.$": "States.Format('CustomerOrder.{}', $.DataExtractionResult[0].OrderConfirmationNum.orderConfirmationNum)",
+                                                "partNumbers.$": "$.DataExtractionResult[1].TransformedCartItems.partNumbers"
+                                            }
+                                        }
+                                    },
+                                    "headers": {}
+                                }
+                            },
+                            "ResultPath": "$.InventoryAllocationResult",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "FraudCheck",
+                    "States": {
+                        "FraudCheck": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+                            "Parameters": {
+                                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                                "Input": {
+                                    "connectionArn.$": "$.preauthFraudConnectionArn",
+                                    "url": "https://preauth-v2.use1.corp.dev.aws.chewy.cloud",
+                                    "urlSuffix": "/PreAuthScreen",
+                                    "operation": "POST",
+                                    "RequestBody": {
+                                        "browser_ip": "203.0.113.42",
+                                        "client_details": {
+                                            "accept_language": "en-US",
+                                            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                                        },
+                                        "created_at.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.createdTime",
+                                        "closed_at.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.modifiedTime",
+                                        "cart_token.$": "$.ExtractedCartId.cartId",
+                                        "customer": {
+                                            "customer_id.$": "$.userId"
+                                        },
+                                        "currency.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.currencyCode",
+                                        "total_price.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total",
+                                        "line_items.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.items",
+                                        "shipping_address.$": "$.UserCartInfo[0].UserInfo.Output.ResponseBody.addresses[0]",
+                                        "payment_details.$": "$.UpdatedPaymentInfo.Output.ResponseBody",
+                                        "order_type": "ONLINE",
+                                        "submitter": "CUSTOMER",
+                                        "partNumbers.$": "$.DataExtractionResult[1].TransformedCartItems.partNumbers"
+                                    },
+                                    "headers": {}
+                                }
+                            },
+                            "ResultSelector": {
+                                "action.$": "$.Output.ResponseBody.action"
+                            },
+                            "ResultPath": "$.ScreenCheckResult",
+                            "End": true
+                        }
+                    }
+                }
+            ],
+            "Next": "PaymentsBApprove"
+        },
+        "PaymentsBApprove": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "TimeoutSeconds": 60,
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://payments-b-use1.opta.dev.aws.chewy.cloud/api/v1",
+                    "urlSuffix": "/payment/approve",
+                    "operation": "POST",
+                    "connectionArn.$": "$.paymentsBLegacyConnectionArn",
+                    "headers": {
+                        "x-request-id.$": "$.UpdatedPaymentInfo.Output.Headers.x-request-id[0]"
+                    },
+                    "RequestBody": {
+                        "order-id.$": "$.DataExtractionResult[0].OrderConfirmationNum.orderConfirmationNum",
+                        "order-type": "ONLINE",
+                        "payment-event-id.$": "$.UpdatedPaymentInfo.Output.ResponseBody[0].id",
+                        "request-timestamp.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.modifiedTime",
+                        "currency.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.currencyCode",
+                        "requested-amount.$": "$.UserCartInfo[1].CartInfo.Output.ResponseBody.total"
+                    }
+                }
             },
+            "ResultPath": "$.PaymentsBApproveResult",
             "End": true
         }
     },

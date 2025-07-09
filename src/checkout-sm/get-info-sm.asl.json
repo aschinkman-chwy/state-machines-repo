@@ -37,6 +37,7 @@
             "End": true
         },
         "InvokeOperationWithBody": {
+            "TimeoutSeconds": 60,
             "Type": "Task",
             "Resource": "arn:aws:states:::http:invoke",
             "Parameters": {

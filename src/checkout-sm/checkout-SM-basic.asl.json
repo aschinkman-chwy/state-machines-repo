@@ -27,6 +27,33 @@
                                 "ResponseBody.$": "$.Output.ResponseBody"
                             },
                             "ResultPath": "$.UserInfo",
+                            "Next": "KyriosUserInfoEncrypted"
+                        },
+                        "KyriosUserInfoEncrypted": {
+                            "Type": "Task",
+                            "TimeoutSeconds": 60,
+                            "Resource": "arn:aws:lambda:us-east-1:243249644484:function:decrypt-send-encrypt-function",
+                            "Parameters": {
+                                "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                                "urlSuffix.$": "States.Format('/eks/app/kyrios-b/v1/users/{}', $.userId)",
+                                "apiDestinationName": "aschinkmann-connection-api-dest",
+                                "apiDestinationArn": "arn:aws:events:us-east-1:243249644484:api-destination/aschinkmann-connection-api-dest/09848d2f-f66a-43ea-bafa-e7f84f6b630a",
+                                "connectionArn.$": "$.connectionArn",
+                                "headers": {
+                                    "account.$": "$.userId"
+                                },
+                                "operation": "GET",
+                                "decryptFields": [],
+                                "piiFields": [
+                                    "id",
+                                    "profileId",
+                                    "personalizationId",
+                                    "addresses",
+                                    "phone1",
+                                    "fullName"
+                                ]
+                            },
+                            "ResultPath": "$.UserInfoENCRYPTED",
                             "Next": "FilterUserInfo"
                         },
                         "FilterUserInfo": {
@@ -484,6 +511,63 @@
                     }
                 }
             ],
+            "Next": "PaymentsBApprove"
+        },
+        "PaymentsBApprove": {
+            "TimeoutSeconds": 60,
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://payments-b-use1-eks-hydration.opta.dev.aws.chewy.cloud/api/v1",
+                    "urlSuffix": "/payment/approve",
+                    "operation": "POST",
+                    "connectionArn.$": "$.paymentsBConnectionArn",
+                    "headers": {
+                        "x-request-id": "f27d30316a5a50eac2209e4c4799b902,CAB-468f73c7-1"
+                    },
+                    "RequestBody": {
+                        "customer-id": "255310022",
+                        "order-id": "5000458352",
+                        "order-type": "REGULAR",
+                        "payment-event-id": "Checkout-2079082c-2db1-40d0-a801-6c76696219c1",
+                        "business-unit": null,
+                        "request-timestamp": "2025-07-09T18:37:31.780913",
+                        "merchant-category": "PETGOODS",
+                        "use-case": "INITIAL_AUTH",
+                        "currency": "USD",
+                        "requested-amount": "52.57",
+                        "subscription-id": null,
+                        "subscriptions": [],
+                        "payment-instructions": [
+                            {
+                                "payment-reference-id": null,
+                                "payment-method": {
+                                    "payment-method-id": "2e57cafe-6509-4db2-acea-d3ac46cd2e48",
+                                    "wallet-id": "bf4f51f4-d19e-48a1-b347-947a7db57a31",
+                                    "payment-method-type": "CREDITCARD"
+                                },
+                                "amount": "52.57"
+                            }
+                        ],
+                        "shipping-address": {
+                            "full-name": "test1",
+                            "street1": "343 CONGRESS ST",
+                            "street2": "FL 5",
+                            "street3": null,
+                            "city": "BOSTON",
+                            "state": "MA",
+                            "country": "US",
+                            "postal-code": "02210-1337"
+                        }
+                    }
+                }
+            },
+            "ResultSelector": {
+                "ResponseBody.$": "$.Output.ResponseBody"
+            },
+            "ResultPath": "$.PaymentsBApproveResult",
             "End": true
         }
     },

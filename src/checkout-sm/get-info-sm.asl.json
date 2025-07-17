@@ -12,6 +12,11 @@
                 },
                 {
                     "Variable": "$.operation",
+                    "StringEquals": "PATCH",
+                    "Next": "InvokeOperationWithQueryParams"
+                },
+                {
+                    "Variable": "$.operation",
                     "StringEquals": "DELETE",
                     "Next": "InvokeOperationNoBody"
                 },
@@ -26,6 +31,7 @@
         "InvokeOperationNoBody": {
             "Type": "Task",
             "Resource": "arn:aws:states:::http:invoke",
+            "TimeoutSeconds": 60,
             "Parameters": {
                 "ApiEndpoint.$": "States.Format('{}{}', $.url, $.urlSuffix)",
                 "Method.$": "$.operation",
@@ -48,6 +54,22 @@
                 },
                 "Headers.$": "$.headers",
                 "RequestBody.$": "$.RequestBody"
+            },
+            "End": true
+        },
+        "InvokeOperationWithQueryParams": {
+            "TimeoutSeconds": 60,
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
+            "Parameters": {
+                "ApiEndpoint.$": "States.Format('{}{}', $.url, $.urlSuffix)",
+                "Method": "PATCH",
+                "Authentication": {
+                    "ConnectionArn.$": "$.connectionArn"
+                },
+                "Headers.$": "$.headers",
+                "RequestBody.$": "$.RequestBody",
+                "QueryParameters.$": "$.queryParameters"
             },
             "End": true
         }

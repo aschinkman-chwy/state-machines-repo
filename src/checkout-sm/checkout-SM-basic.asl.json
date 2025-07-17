@@ -14,8 +14,8 @@
                             "Parameters": {
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
-                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/kyrios-b/v1/users/",
-                                    "urlSuffix.$": "$.userId",
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                                    "urlSuffix.$": "States.Format('/eks/app/kyrios-b/v1/users/{}', $.userId)",
                                     "headers": {
                                         "account.$": "$.userId"
                                     },
@@ -47,8 +47,8 @@
                             "Parameters": {
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
-                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/cart-b/api/v1/cart",
-                                    "urlSuffix": "",
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                                    "urlSuffix": "/eks/app/cart-b/api/v1/cart",
                                     "headers": {
                                         "account.$": "$.userId"
                                     },
@@ -81,8 +81,8 @@
             "Parameters": {
                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                 "Input": {
-                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/app/cart-b/api/v1/cart/payment-instruction",
-                    "urlSuffix": "",
+                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                    "urlSuffix": "/eks/app/cart-b/api/v1/cart/payment-instruction",
                     "operation": "PUT",
                     "connectionArn.$": "$.connectionArn",
                     "headers": {
@@ -94,7 +94,7 @@
                         "walletId": "0d1d26fb-b9bd-4fc9-b5bd-d5ba13a3471e",
                         "paymentMethodId": "5b9ce7e6-6756-44c2-83b5-16ae94411602",
                         "paymentMethodType": "CREDITCARD",
-                        "amount": "94.10",
+                        "amount": "18.75",
                         "additionalData": {
                             "cardFlag": "VISA",
                             "cardLast4": "4242",
@@ -174,8 +174,8 @@
                             "Parameters": {
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
-                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/eks/ns/promotions/adjustments-svc/v1/adjustments",
-                                    "urlSuffix": "/apply",
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                                    "urlSuffix": "/eks/ns/promotions/adjustments-svc/v1/adjustments/apply",
                                     "connectionArn.$": "$.connectionArn",
                                     "operation": "POST",
                                     "headers": {
@@ -206,42 +206,6 @@
                                                 "auto_add": false,
                                                 "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[0].recurring",
                                                 "line_number": "1",
-                                                "plan_id": null,
-                                                "plan_item_id": null,
-                                                "plan_type": null
-                                            },
-                                            {
-                                                "id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].id",
-                                                "cat_entry_id": null,
-                                                "part_number.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].partNumber",
-                                                "personalization_attributes": {},
-                                                "quantity.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].quantity",
-                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].unitPrice",
-                                                "shipping_price": 0,
-                                                "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].totalPrice",
-                                                "is_adjustment_editable": null,
-                                                "components": [],
-                                                "auto_add": false,
-                                                "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[1].recurring",
-                                                "line_number": "2",
-                                                "plan_id": null,
-                                                "plan_item_id": null,
-                                                "plan_type": null
-                                            },
-                                            {
-                                                "id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].id",
-                                                "cat_entry_id": null,
-                                                "part_number.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].partNumber",
-                                                "personalization_attributes": {},
-                                                "quantity.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].quantity",
-                                                "unit_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].unitPrice",
-                                                "shipping_price": 0,
-                                                "total_price.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].totalPrice",
-                                                "is_adjustment_editable": null,
-                                                "components": [],
-                                                "auto_add": false,
-                                                "autoship.$": "$.UserCartInfo[1].CartInfo.ResponseBody.items[2].recurring",
-                                                "line_number": "3",
                                                 "plan_id": null,
                                                 "plan_item_id": null,
                                                 "plan_type": null
@@ -279,8 +243,8 @@
                             "Parameters": {
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
-                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud/api/tax-svc",
-                                    "urlSuffix": "/tax/quote",
+                                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                                    "urlSuffix": "/api/tax-svc/tax/quote",
                                     "connectionArn.$": "$.connectionArn",
                                     "headers": {
                                         "x-request-id.$": "$.UpdatedPaymentInfo.ExtractedXrequestedId",
@@ -288,7 +252,7 @@
                                     },
                                     "operation": "POST",
                                     "RequestBody": {
-                                        "requestId": "5000000667",
+                                        "requestId": "$[0].OrderConfirmationNum.orderConfirmationNum",
                                         "storeId": null,
                                         "origin": "CHECKOUT",
                                         "currency": "USD",
@@ -306,65 +270,7 @@
                                                 "totalChewyFundedAdjustment": null,
                                                 "totalVendorFundedAdjustment": null,
                                                 "catalogIdentifier": "m-chicken-feed-feed",
-                                                "memberId": "256676018",
-                                                "memberType": "U",
-                                                "ffmCenterName": null,
-                                                "address": {
-                                                    "id": "217789166",
-                                                    "city": "BROOKLINE",
-                                                    "state": "MA",
-                                                    "street1": "*** M**** T**",
-                                                    "postcode": "**********",
-                                                    "country": "US",
-                                                    "latitude": null,
-                                                    "longitude": null
-                                                },
-                                                "rxRequired": false,
-                                                "wholesalePharmacyItem": false,
-                                                "starkAppointmentItem": false
-                                            },
-                                            {
-                                                "id": "17525a2f-9ca5-4091-82a1-129216d23713",
-                                                "quantity": 1,
-                                                "partNumber": "143501",
-                                                "totalProduct": 29.99,
-                                                "shipCharge": 0,
-                                                "shippingAdjustmentTotal": 0,
-                                                "skuId": "170375",
-                                                "discountAdjustmentTotal": 0,
-                                                "totalChewyFundedAdjustment": null,
-                                                "totalVendorFundedAdjustment": null,
-                                                "catalogIdentifier": "m-chicken-feed-feed",
-                                                "memberId": "256676018",
-                                                "memberType": "U",
-                                                "ffmCenterName": null,
-                                                "address": {
-                                                    "id": "217789166",
-                                                    "city": "BROOKLINE",
-                                                    "state": "MA",
-                                                    "street1": "*** M**** T**",
-                                                    "postcode": "**********",
-                                                    "country": "US",
-                                                    "latitude": null,
-                                                    "longitude": null
-                                                },
-                                                "rxRequired": false,
-                                                "wholesalePharmacyItem": false,
-                                                "starkAppointmentItem": false
-                                            },
-                                            {
-                                                "id": "30172cc6-e122-4774-af5b-dff5ea3dc43c",
-                                                "quantity": 1,
-                                                "partNumber": "235297",
-                                                "totalProduct": 26.99,
-                                                "shipCharge": 0,
-                                                "shippingAdjustmentTotal": 0,
-                                                "skuId": "261792",
-                                                "discountAdjustmentTotal": 0,
-                                                "totalChewyFundedAdjustment": null,
-                                                "totalVendorFundedAdjustment": null,
-                                                "catalogIdentifier": "m-chicken-feed-feed",
-                                                "memberId": "256676018",
+                                                "memberId": "$.userId",
                                                 "memberType": "U",
                                                 "ffmCenterName": null,
                                                 "address": {
@@ -414,8 +320,8 @@
                             "Parameters": {
                                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                                 "Input": {
-                                    "url": "https://inventory-svc.use1.scff.dev.aws.chewy.cloud/v1",
-                                    "urlSuffix": "/inventory/allocations",
+                                    "url": "https://inventory-svc.use1.scff.dev.aws.chewy.cloud",
+                                    "urlSuffix": "/v1/inventory/allocations",
                                     "connectionArn.$": "$.inventoryAllocConnectionArn",
                                     "operation": "POST",
                                     "RequestBody": {
@@ -493,46 +399,46 @@
             "Parameters": {
                 "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
                 "Input": {
-                    "url": "https://payments-b-use1-eks-hydration.opta.dev.aws.chewy.cloud/api/v1",
-                    "urlSuffix": "/payment/approve",
+                    "url": "https://payments-b-use1-eks-hydration.opta.dev.aws.chewy.cloud",
+                    "urlSuffix": "/api/v1/payment/approve",
                     "operation": "POST",
                     "connectionArn.$": "$.paymentsBConnectionArn",
                     "headers": {
-                        "x-request-id": "f27d30316a5a50eac2209e4c4799b902,CAB-468f73c7-1"
+                        "x-request-id.$": "$.UpdatedPaymentInfo.ExtractedXrequestedId"
                     },
                     "RequestBody": {
-                        "customer-id": "255310022",
-                        "order-id": "5000458352",
+                        "customer-id": "256676018",
+                        "order-id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
                         "order-type": "REGULAR",
-                        "payment-event-id": "Checkout-2079082c-2db1-40d0-a801-6c76696219c1",
+                        "payment-event-id": "Checkout-95a11df1-49e0-4032-b909-33c5a27d33e0",
                         "business-unit": null,
-                        "request-timestamp": "2025-07-09T18:37:31.780913",
+                        "request-timestamp": "2025-07-16T13:12:31.780913",
                         "merchant-category": "PETGOODS",
                         "use-case": "INITIAL_AUTH",
                         "currency": "USD",
-                        "requested-amount": "52.57",
+                        "requested-amount": "18.75",
                         "subscription-id": null,
                         "subscriptions": [],
                         "payment-instructions": [
                             {
                                 "payment-reference-id": null,
                                 "payment-method": {
-                                    "payment-method-id": "2e57cafe-6509-4db2-acea-d3ac46cd2e48",
-                                    "wallet-id": "bf4f51f4-d19e-48a1-b347-947a7db57a31",
+                                    "payment-method-id": "5b9ce7e6-6756-44c2-83b5-16ae94411602",
+                                    "wallet-id": "0d1d26fb-b9bd-4fc9-b5bd-d5ba13a3471e",
                                     "payment-method-type": "CREDITCARD"
                                 },
-                                "amount": "52.57"
+                                "amount": "18.75"
                             }
                         ],
                         "shipping-address": {
-                            "full-name": "test1",
-                            "street1": "343 CONGRESS ST",
-                            "street2": "FL 5",
-                            "street3": null,
-                            "city": "BOSTON",
+                            "full-name": "**** S* ",
+                            "street1": "*** M**** T**",
+                            "street2": "n****",
+                            "street3": "n****",
+                            "city": "BROOKLINE",
                             "state": "MA",
                             "country": "US",
-                            "postal-code": "02210-1337"
+                            "postal-code": "**********"
                         }
                     }
                 }
@@ -541,6 +447,226 @@
                 "ResponseBody.$": "$.Output.ResponseBody"
             },
             "ResultPath": "$.PaymentsBApproveResult",
+            "Next": "CreateOrder"
+        },
+        "CreateOrder": {
+            "Type": "Task",
+            "TimeoutSeconds": 60,
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud",
+                    "urlSuffix": "/api/v1/orders",
+                    "operation": "POST",
+                    "connectionArn.$": "$.orderServiceConnectionArn",
+                    "headers": {
+                        "x-request-id.$": "$.UpdatedPaymentInfo.ExtractedXrequestedId"
+                    },
+                    "RequestBody": {
+                        "adjustments": [],
+                        "attributes": {
+                            "BUSINESS_CHANNEL": "DWEB",
+                            "CART_TYPE": "ACTIVE",
+                            "USE_REWARDS": "false",
+                            "WEB_APP_VERSION": "1619-checkout-spa-main"
+                        },
+                        "attributionId": null,
+                        "attributionType": null,
+                        "businessChannel": "WEB",
+                        "currency": "USD",
+                        "donationOrgId": null,
+                        "email1": "**********@c****.com",
+                        "expectedFulfillmentDate": null,
+                        "externalOrderId.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
+                        "fees": [],
+                        "fraudSessionId": "4390a5d1-1940-4e34-b97b-875fa9b1c8ee",
+                        "incomplete": false,
+                        "inventoryAllocationId": "",
+                        "lineItems": [
+                            {
+                                "appointmentDate": null,
+                                "attributes": {},
+                                "autoAdd": false,
+                                "bundleComponents": null,
+                                "currency": "USD",
+                                "earnedRewards": {
+                                    "currency": "USD",
+                                    "reason": null,
+                                    "value": "0"
+                                },
+                                "fulfillmentCenter": null,
+                                "isAutoRefill": null,
+                                "lineNumber": 1,
+                                "oneTime": true,
+                                "personalizationAttributeMap": {},
+                                "product": {
+                                    "attributes": [],
+                                    "bundleTitle": "",
+                                    "catalogEntryId": "149519",
+                                    "description": "***",
+                                    "name": "Instinct Raw Boost Mixers Lamb Recipe Grain-Free Freeze-Dried Dog Food Topper, 5.5-oz bag",
+                                    "partNumber": "122371"
+                                },
+                                "promiseDeliveryDate": null,
+                                "quantity": 1,
+                                "salesTax": {
+                                    "currency": "USD",
+                                    "value": "0.81"
+                                },
+                                "salesTaxCategories": {
+                                    "STATE SALES TAX": {
+                                        "currency": "USD",
+                                        "value": "0.81"
+                                    }
+                                },
+                                "shippingAddress": {
+                                    "addressLine1": "*** M**** T**",
+                                    "addressLine2": "n****",
+                                    "city": "BROOKLINE",
+                                    "confidenceLevel": null,
+                                    "country": "US",
+                                    "firstName": "n****",
+                                    "addressType": "RESIDENTIAL",
+                                    "addressSubType": null,
+                                    "fullName": "**** S* ",
+                                    "kyriosId": "217789166",
+                                    "lastName": "n****",
+                                    "latitude": null,
+                                    "longitude": null,
+                                    "nickname": null,
+                                    "phone": "**********",
+                                    "postcode": "**********",
+                                    "state": "MA",
+                                    "verificationStatus": "VERIFIED"
+                                },
+                                "shippingCharge": {
+                                    "currency": "USD",
+                                    "value": "4.95"
+                                },
+                                "shippingModeCode": "FLATRATE",
+                                "shippingTax": {
+                                    "currency": "USD",
+                                    "value": "0"
+                                },
+                                "shippingTaxCategories": {},
+                                "totalProduct": {
+                                    "currency": "USD",
+                                    "value": "12.99"
+                                },
+                                "unitPrice": {
+                                    "currency": "USD",
+                                    "value": "12.99"
+                                },
+                                "wishListId": null,
+                                "subscriptionId": null
+                            }
+                        ],
+                        "memberId": "256676018",
+                        "orgId": null,
+                        "overrideIfOrderExists": null,
+                        "paymentGateway": false,
+                        "paymentInstructions": [
+                            {
+                                "accountNumber": "*******************",
+                                "amount": {
+                                    "currency": "USD",
+                                    "value": "18.75"
+                                },
+                                "billingAddress": {
+                                    "addressLine1": "*** M**** T**",
+                                    "addressLine2": " n****",
+                                    "city": "BROOKLINE",
+                                    "confidenceLevel": null,
+                                    "country": "USA",
+                                    "firstName": "n****",
+                                    "addressType": null,
+                                    "addressSubType": null,
+                                    "fullName": "n****",
+                                    "kyriosId": null,
+                                    "lastName": "n****",
+                                    "latitude": null,
+                                    "longitude": null,
+                                    "nickname": null,
+                                    "phone": "n****",
+                                    "postcode": "**********",
+                                    "state": "MA",
+                                    "verificationStatus": "UNKNOWN"
+                                },
+                                "expirationMonth": "1",
+                                "expirationYear": "2033",
+                                "legacyId": null,
+                                "payRefId": "7a933143-e265-40a5-8a5b-694314e77da3",
+                                "paymentMethodType": "AMEX",
+                                "walletId": "0d1d26fb-b9bd-4fc9-b5bd-d5ba13a3471e",
+                                "walletPayMethodId": "5b9ce7e6-6756-44c2-83b5-16ae94411602"
+                            }
+                        ],
+                        "promiseDeliveryDate": null,
+                        "remoteIp": "192.88.179.15",
+                        "replacesOrderId": null,
+                        "shippingAddress": {
+                            "addressLine1": "*** M**** T**",
+                            "addressLine2": "n****",
+                            "city": "BROOKLINE",
+                            "confidenceLevel": null,
+                            "country": "US",
+                            "firstName": "n****",
+                            "addressType": "RESIDENTIAL",
+                            "addressSubType": null,
+                            "fullName": "**** S* ",
+                            "kyriosId": "217789166",
+                            "lastName": "n****",
+                            "latitude": null,
+                            "longitude": null,
+                            "nickname": null,
+                            "phone": "**********",
+                            "postcode": "**********",
+                            "state": "MA",
+                            "verificationStatus": "VERIFIED"
+                        },
+                        "siteId": null,
+                        "skipOms": false,
+                        "sourceId": null,
+                        "status": null,
+                        "subSiteId": null,
+                        "submitter": "CUSTOMER",
+                        "submitterId": "256676018",
+                        "subscriptionInfos": null,
+                        "timePlaced": "2025-07-16T13:33:12.939Z",
+                        "timeUpdated": null,
+                        "total": {
+                            "currency": "USD",
+                            "value": "18.75"
+                        }
+                    }
+                }
+            },
+            "Next": "CompleteOrder",
+            "ResultSelector": {
+                "ResponseBody.$": "$.Output.ResponseBody"
+            },
+            "ResultPath": "$.CreateOrderResult"
+        },
+        "CompleteOrder": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://dev-use1-apt-shared-main.plat.dev.aws.chewy.cloud",
+                    "urlSuffix": "/eks/app/cart-b/api/v1/cart/status",
+                    "connectionArn.$": "$.connectionArn",
+                    "operation": "PATCH",
+                    "headers": {
+                        "account.$": "$.userId"
+                    },
+                    "queryParameters": {
+                        "status.$": "$.UserCartInfo[1].CartInfo.ResponseBody.status"
+                    },
+                    "RequestBody": {}
+                }
+            },
             "End": true
         }
     },

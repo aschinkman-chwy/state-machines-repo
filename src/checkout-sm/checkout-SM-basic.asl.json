@@ -116,6 +116,39 @@
                 "ExtractedXrequestedId.$": "$.Output.Headers.x-request-id[0]"
             },
             "ResultPath": "$.UpdatedPaymentInfo",
+            "Next": "Choice"
+        },
+        "Choice": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
+                    "IsPresent": false,
+                    "Next": "CreateOrderConfirmId"
+                }
+            ],
+            "Default": "DataExtractionTransformation"
+        },
+        "CreateOrderConfirmId": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Parameters": {
+                "StateMachineArn": "arn:aws:states:us-east-1:243249644484:stateMachine:get-info-statemachine",
+                "Input": {
+                    "url": "https://order-api-us-east-1.opta.dev.aws.chewy.cloud",
+                    "urlSuffix": "/graphql",
+                    "operation": "POST",
+                    "connectionArn.$": "$.orderIdConnectionArn",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "RequestBody": "{\"query\":\"query { newOrderExternalId { value } }\"}"
+                }
+            },
+            "ResultSelector": {
+                "ResponseBody.$": "$.Output.ResponseBody"
+            },
+            "ResultPath": "$.orderConfirmationId",
             "Next": "DataExtractionTransformation"
         },
         "DataExtractionTransformation": {
@@ -131,9 +164,28 @@
                     "StartAt": "ExtractOrderConfirmationNumber",
                     "States": {
                         "ExtractOrderConfirmationNumber": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
+                                    "IsPresent": true,
+                                    "Next": "UseCartOrderConfirmationId"
+                                }
+                            ],
+                            "Default": "UseCreatedOrderConfirmationId"
+                        },
+                        "UseCartOrderConfirmationId": {
                             "Type": "Pass",
                             "Parameters": {
                                 "orderConfirmationNum.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId"
+                            },
+                            "ResultPath": "$.OrderConfirmationNum",
+                            "End": true
+                        },
+                        "UseCreatedOrderConfirmationId": {
+                            "Type": "Pass",
+                            "Parameters": {
+                                "orderConfirmationNum.$": "$.orderConfirmationId.ResponseBody.data.newOrderExternalId.value"
                             },
                             "ResultPath": "$.OrderConfirmationNum",
                             "End": true
@@ -252,7 +304,7 @@
                                     },
                                     "operation": "POST",
                                     "RequestBody": {
-                                        "requestId": "$[0].OrderConfirmationNum.orderConfirmationNum",
+                                        "requestId": "$.DataExtractionResult.OrderConfirmationNum",
                                         "storeId": null,
                                         "origin": "CHECKOUT",
                                         "currency": "USD",
@@ -408,7 +460,7 @@
                     },
                     "RequestBody": {
                         "customer-id": "256676018",
-                        "order-id.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
+                        "order-id.$": "$.DataExtractionResult.OrderConfirmationNum",
                         "order-type": "REGULAR",
                         "payment-event-id": "Checkout-95a11df1-49e0-4032-b909-33c5a27d33e0",
                         "business-unit": null,
@@ -478,7 +530,7 @@
                         "donationOrgId": null,
                         "email1": "**********@c****.com",
                         "expectedFulfillmentDate": null,
-                        "externalOrderId.$": "$.UserCartInfo[1].CartInfo.ResponseBody.orderConfirmationId",
+                        "externalOrderId.$": "$.DataExtractionResult.OrderConfirmationNum",
                         "fees": [],
                         "fraudSessionId": "4390a5d1-1940-4e34-b97b-875fa9b1c8ee",
                         "incomplete": false,
@@ -662,7 +714,7 @@
                         "account.$": "$.userId"
                     },
                     "queryParameters": {
-                        "status.$": "$.UserCartInfo[1].CartInfo.ResponseBody.status"
+                        "status": "COMPLETED"
                     },
                     "RequestBody": {}
                 }
